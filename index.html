@@ -49,7 +49,6 @@
             display: grid;
             grid-template-columns: repeat(7, minmax(0, 1fr));
         }
-        /* Custom scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
             height: 6px;
@@ -70,12 +69,11 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // Configure PDF.js worker
         if (window.pdfjsLib) {
             window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
 
-        const { useState, useEffect, useRef } = React;
+        const { useState, useEffect } = React;
 
         const DAYS_LAO = ['ອາທິດ', 'ຈັນ', 'ອັງຄານ', 'ພຸດ', 'ພະຫັດ', 'ສຸກ', 'ເສົາ'];
         const MONTHS_LAO = [
@@ -83,7 +81,6 @@
             'ກໍລະກົດ', 'ສິງຫາ', 'ກັນຍາ', 'ຕຸລາ', 'ພະຈິກ', 'ທັນວາ'
         ];
 
-        // Shift color mapping
         const SHIFT_TYPES = {
             morning: { label: 'ກະເຊົ້າ (Morning)', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-300', badge: 'bg-amber-500' },
             afternoon: { label: 'ກະບ່າຍ (Afternoon)', bg: 'bg-sky-100', text: 'text-sky-800', border: 'border-sky-300', badge: 'bg-sky-500' },
@@ -94,7 +91,6 @@
         };
 
         function App() {
-            // State variables
             const [currentDate, setCurrentDate] = useState(new Date());
             const [userName, setUserName] = useState(() => localStorage.getItem('work_user_name') || 'ສົມໄຊ');
             const [events, setEvents] = useState(() => {
@@ -102,7 +98,6 @@
                 if (saved) {
                     try { return JSON.parse(saved); } catch(e) { console.error(e); }
                 }
-                // Initial sample data if empty
                 const todayStr = new Date().toISOString().split('T')[0];
                 return [
                     {
@@ -121,18 +116,15 @@
             });
 
             const [selectedDateStr, setSelectedDateStr] = useState(new Date().toISOString().split('T')[0]);
-            const [viewMode, setViewMode] = useState('month'); // 'month', 'week', 'list'
             const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
             const [isAddEditModalOpen, setIsAddEditModalOpen] = useState(false);
             const [editingEvent, setEditingEvent] = useState(null);
             
-            // Notification state
             const [notifPermission, setNotifPermission] = useState(
                 typeof Notification !== 'undefined' ? Notification.permission : 'default'
             );
             const [toast, setToast] = useState(null);
 
-            // Save settings & events
             useEffect(() => {
                 localStorage.setItem('work_user_name', userName);
             }, [userName]);
@@ -141,7 +133,6 @@
                 localStorage.setItem('work_schedule_events', JSON.stringify(events));
             }, [events]);
 
-            // Show temporary toast message
             const showToast = (message, type = 'info') => {
                 setToast({ message, type });
                 setTimeout(() => setToast(null), 4000);
@@ -160,7 +151,7 @@
                             body: "ລະບົບຈະແຈ້ງເຕືອນທ່ານເມື່ອຮອດເວລາເຮັດວຽກຕາມຕາຕະລາງ",
                             icon: "https://cdn-icons-png.flaticon.com/512/3652/3652191.png"
                         });
-                        showToast("ເປີດການແຈ້ງເຕືອນ Chrome เรียบร้อย!", "success");
+                        showToast("ເປີດການແຈ້ງເຕືອນ Chrome ຮຽບຮ້ອຍ!", "success");
                     } else {
                         showToast("ທ່ານໄດ້ປະຕິເສດການແຈ້ງເຕືອນ Chrome", "warning");
                     }
@@ -169,47 +160,6 @@
                 }
             };
 
-            // Background checker for Chrome notifications
-            useEffect(() => {
-                const interval = setInterval(() => {
-                    if (notifPermission !== 'granted') return;
-
-                    const now = new Date();
-                    const dateStr = now.toISOString().split('T')[0];
-                    const currentHours = String(now.getHours()).padStart(2, '0');
-                    const currentMinutes = String(now.getMinutes()).padStart(2, '0');
-                    const timeNowStr = `${currentHours}:${currentMinutes}`;
-
-                    setEvents(prevEvents => {
-                        let hasChanges = false;
-                        const updated = prevEvents.map(evt => {
-                            if (evt.date === dateStr && !evt.notified && evt.startTime) {
-                                // Calculate alert time (e.g. at start time or 15m before)
-                                const [h, m] = evt.startTime.split(':').map(Number);
-                                const eventTimeMinutes = h * 60 + m;
-                                const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
-                                // Notify if within 15 mins before or at exact start time
-                                if (eventTimeMinutes - nowMinutes <= 15 && eventTimeMinutes - nowMinutes >= 0) {
-                                    hasChanges = true;
-                                    new Notification(`⏰ ແຈ້ງເຕືອນເຂົ້າຮອບວຽກ: ${evt.title}`, {
-                                        body: `ເວລາ: ${evt.startTime} - ${evt.endTime}\nສະຖານທີ່: ${evt.location || 'ບໍ່ໄດ້ລະບຸ'}\n${evt.notes || ''}`,
-                                        icon: "https://cdn-icons-png.flaticon.com/512/3652/3652191.png",
-                                        requireInteraction: true
-                                    });
-                                    return { ...evt, notified: true };
-                                }
-                            }
-                            return evt;
-                        });
-                        return hasChanges ? updated : prevEvents;
-                    });
-                }, 30000); // check every 30s
-
-                return () => clearInterval(interval);
-            }, [notifPermission]);
-
-            // Calendar Navigation Helpers
             const prevMonth = () => {
                 setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
             };
@@ -222,7 +172,6 @@
                 setSelectedDateStr(today.toISOString().split('T')[0]);
             };
 
-            // Event Handlers
             const handleSaveEvent = (eventData) => {
                 if (eventData.id) {
                     setEvents(events.map(e => e.id === eventData.id ? eventData : e));
@@ -242,12 +191,10 @@
             };
 
             const handleImportParsedEvents = (newEvents) => {
-                // Filter out duplicates if needed or combine
                 setEvents(prev => [...prev, ...newEvents]);
                 showToast(`ນໍາເຂົ້າຕາຕະລາງສຳເລັດ ${newEvents.length} ລາຍການ!`, "success");
             };
 
-            // Export events to .ics file
             const exportToICal = () => {
                 if (events.length === 0) {
                     showToast("ບໍ່ມີຂໍ້ມູນຕາຕະລາງເພື່ອສົ່ງອອກ", "warning");
@@ -283,7 +230,6 @@
 
             return (
                 <div class="min-h-screen flex flex-col pb-12">
-                    {}
                     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
                         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
                             <div class="flex items-center space-x-3">
@@ -296,7 +242,6 @@
                                 </div>
                             </div>
 
-                            {/* User Name & Notification Setup */}
                             <div class="flex items-center space-x-2 sm:space-x-4">
                                 <div class="flex items-center bg-slate-100 rounded-lg px-3 py-1.5 border border-slate-200">
                                     <i class="fa-solid fa-user-circle text-sky-600 mr-2"></i>
@@ -317,7 +262,6 @@
                                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' 
                                             : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 animate-pulse'
                                     }`}
-                                    title="ຕັ້ງແຈ້ງເຕືອນ Chrome"
                                 >
                                     <i class={`fa-solid ${notifPermission === 'granted' ? 'fa-bell' : 'fa-bell-slash'}`}></i>
                                     <span class="hidden md:inline">
@@ -336,7 +280,6 @@
                         </div>
                     </header>
 
-                    {/* Toast Alert Popup */}
                     {toast && (
                         <div class="fixed top-20 right-4 z-50 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 text-sm animate-bounce">
                             <i class={`fa-solid ${toast.type === 'success' ? 'fa-circle-check text-emerald-400' : toast.type === 'error' ? 'fa-circle-xmark text-rose-400' : 'fa-circle-info text-sky-400'}`}></i>
@@ -344,13 +287,10 @@
                         </div>
                     )}
 
-                    {/* Main Content Area */}
                     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 flex-grow w-full">
                         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
                             
-                            {}
                             <div class="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-6">
-                                {/* Calendar Header Controls */}
                                 <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                                     <div class="flex items-center space-x-3">
                                         <h2 class="text-xl sm:text-2xl font-bold text-slate-800">
@@ -369,12 +309,10 @@
                                         </div>
                                     </div>
 
-                                    {/* Action Buttons */}
                                     <div class="flex items-center space-x-2 w-full sm:w-auto justify-end">
                                         <button 
                                             onClick={exportToICal}
                                             class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 transition flex items-center space-x-1.5"
-                                            title="Export to iCal / Google Calendar"
                                         >
                                             <i class="fa-solid fa-file-export text-slate-500"></i>
                                             <span>Export Calendar</span>
@@ -400,7 +338,6 @@
                                     </div>
                                 </div>
 
-                                {/* Month Calendar Grid Component */}
                                 <CalendarMonthGrid 
                                     currentDate={currentDate}
                                     events={events}
@@ -413,9 +350,7 @@
                                 />
                             </div>
 
-                            {}
                             <div class="space-y-6">
-                                {/* Selected Day Details Card */}
                                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
                                     <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
                                         <div>
@@ -446,7 +381,6 @@
                                         </button>
                                     </div>
 
-                                    {/* Events List for Selected Day */}
                                     <DayEventsList 
                                         events={events.filter(e => e.date === selectedDateStr)}
                                         onEdit={(evt) => {
@@ -457,7 +391,6 @@
                                     />
                                 </div>
 
-                                {/* Shift Summary Stats Card */}
                                 <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl p-5 shadow-lg relative overflow-hidden">
                                     <div class="absolute -right-4 -bottom-4 opacity-10 text-8xl text-white">
                                         <i class="fa-solid fa-clock"></i>
@@ -479,7 +412,7 @@
                                                 const [h1, m1] = e.startTime.split(':').map(Number);
                                                 const [h2, m2] = e.endTime.split(':').map(Number);
                                                 let diff = (h2 * 60 + m2) - (h1 * 60 + m1);
-                                                if (diff < 0) diff += 24 * 60; // overnight shift
+                                                if (diff < 0) diff += 24 * 60;
                                                 totalHours += diff / 60;
                                             }
                                         });
@@ -502,7 +435,6 @@
                         </div>
                     </main>
 
-                    {}
                     {isPdfModalOpen && (
                         <PdfAiModal 
                             userName={userName}
@@ -512,7 +444,6 @@
                         />
                     )}
 
-                    {}
                     {isAddEditModalOpen && (
                         <AddEditEventModal 
                             eventData={editingEvent}
@@ -536,11 +467,8 @@
             const daysInPrevMonth = new Date(year, month, 0).getDate();
 
             const todayStr = new Date().toISOString().split('T')[0];
-
-            // Build grid cells (42 cells: 6 weeks * 7 days)
             const gridDays = [];
 
-            // Previous month tail days
             for (let i = firstDayOfMonth - 1; i >= 0; i--) {
                 const dayNum = daysInPrevMonth - i;
                 const d = new Date(year, month - 1, dayNum);
@@ -551,10 +479,7 @@
                 });
             }
 
-            // Current month days
             for (let i = 1; i <= daysInMonth; i++) {
-                const d = new Date(year, month, i);
-                // Adjust timezone offset issue for accurate string
                 const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
                 gridDays.push({
                     dateStr,
@@ -563,7 +488,6 @@
                 });
             }
 
-            // Next month fill days
             const remainingCells = 42 - gridDays.length;
             for (let i = 1; i <= remainingCells; i++) {
                 const d = new Date(year, month + 1, i);
@@ -577,7 +501,6 @@
 
             return (
                 <div>
-                    {/* Weekday headers */}
                     <div class="calendar-grid text-center font-bold text-xs text-slate-500 py-2 border-b border-slate-200">
                         {DAYS_LAO.map((day, idx) => (
                             <div key={idx} class={idx === 0 || idx === 6 ? 'text-rose-500' : ''}>
@@ -586,7 +509,6 @@
                         ))}
                     </div>
 
-                    {/* Days Grid */}
                     <div class="calendar-grid gap-1 sm:gap-2 mt-2">
                         {gridDays.map((cell, idx) => {
                             const dayEvents = events.filter(e => e.date === cell.dateStr);
@@ -618,7 +540,6 @@
                                         )}
                                     </div>
 
-                                    {/* Event Chips */}
                                     <div class="mt-1 space-y-1 overflow-hidden">
                                         {dayEvents.slice(0, 2).map(evt => {
                                             const shiftStyle = SHIFT_TYPES[evt.type] || SHIFT_TYPES.normal;
@@ -719,6 +640,7 @@
         function PdfAiModal({ userName, onClose, onImportEvents, showToast }) {
             const [file, setFile] = useState(null);
             const [targetName, setTargetName] = useState(userName || '');
+            const [userApiKey, setUserApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
             const [isExtracting, setIsExtracting] = useState(false);
             const [statusStep, setStatusStep] = useState('');
             const [parsedResults, setParsedResults] = useState(null);
@@ -730,16 +652,23 @@
             };
 
             const processPdfWithAi = async () => {
+                if (!userApiKey.trim()) {
+                    showToast("ກະລຸນາໃສ່ Gemini API Key ກ່ອນ (ເອົາຟຣີໄດ້ຈາກ Google)", "warning");
+                    return;
+                }
+
                 if (!file) {
                     showToast("ກະລຸນາເລືອກໄຟລ໌ PDF ກ່ອນ", "warning");
                     return;
                 }
 
+                // Save key to local storage
+                localStorage.setItem('gemini_api_key', userApiKey.trim());
+
                 setIsExtracting(true);
                 setStatusStep('ກຳລັງອ່ານຂໍ້ມູນເອກະສານ PDF...');
 
                 try {
-                    // Step 1: Read PDF binary data using FileReader
                     const arrayBuffer = await file.arrayBuffer();
                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
 
@@ -752,7 +681,7 @@
                     }
 
                     if (!fullPdfText.trim()) {
-                        throw new Error("ບໍ່ສາມາດອ່ານຂໍ້ຄວາມຈາກໄຟລ໌ PDF ໄດ້ (ອາດເປັນໄຟລ໌ຮູບພາບ)");
+                        throw new Error("ບໍ່ສາມາດອ່ານຂໍ້ຄວາມຈາກໄຟລ໌ PDF ໄດ້ (ອາດເປັນໄຟລ໌ຮູບພາບທີ່ບໍ່ມີ Text)");
                     }
 
                     setStatusStep('ກຳລັງໃຫ້ Gemini AI ວິເຄາະຕາຕະລາງຂອງ ' + (targetName || 'ທ່ານ') + '...');
@@ -810,8 +739,7 @@ ${fullPdfText.substring(0, 8000)}
                         }
                     };
 
-                    const apiKey = ""; // Runtime automatically injects API key
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${userApiKey.trim()}`;
 
                     const response = await fetch(apiUrl, {
                         method: 'POST',
@@ -820,7 +748,8 @@ ${fullPdfText.substring(0, 8000)}
                     });
 
                     if (!response.ok) {
-                        throw new Error(`API Error: ${response.status}`);
+                        const errData = await response.json().catch(() => ({}));
+                        throw new Error(errData.error?.message || `API Error Status Code: ${response.status}`);
                     }
 
                     const data = await response.json();
@@ -832,7 +761,6 @@ ${fullPdfText.substring(0, 8000)}
 
                     const rawExtractedEvents = JSON.parse(jsonText);
                     
-                    // Deduplicate logic in JS: Only group if date, startTime, endTime AND title match strictly
                     const uniqueMap = new Map();
                     rawExtractedEvents.forEach((e) => {
                         if (!e.date) return;
@@ -848,7 +776,6 @@ ${fullPdfText.substring(0, 8000)}
 
                     const deduplicated = Array.from(uniqueMap.values());
 
-                    // Add IDs and defaults
                     const formattedEvents = deduplicated.map((e, idx) => ({
                         id: 'ai-imported-' + Date.now() + '-' + idx,
                         date: e.date || new Date().toISOString().split('T')[0],
@@ -879,12 +806,10 @@ ${fullPdfText.substring(0, 8000)}
                 }
             };
 
-            // Remove a single event item from extracted list
             const handleRemoveItem = (indexToRemove) => {
                 setParsedResults(prev => prev.filter((_, idx) => idx !== indexToRemove));
             };
 
-            // Manual deduplicate trigger button in modal
             const handleManualDeduplicate = () => {
                 if (!parsedResults) return;
                 const uniqueMap = new Map();
@@ -899,7 +824,6 @@ ${fullPdfText.substring(0, 8000)}
                 showToast(`ຮວມສະເພາະແຖວທີ່ຊໍ້າກັນແທ້ໆແລ້ວ ເຫຼືອ ${cleaned.length} ວາລະ`, "info");
             };
 
-            // Sample Demo PDF simulation button (Shows 3 sessions in 1 day)
             const simulateDemoExtract = () => {
                 setIsExtracting(true);
                 setStatusStep('ກຳລັງທົດລອງດຶງຂໍ້ມູນຕົວຢ່າງ (ແຍກ 3 ວາລະ)...');
@@ -909,12 +833,9 @@ ${fullPdfText.substring(0, 8000)}
                     const month = String(today.getMonth() + 1).padStart(2, '0');
 
                     const sampleData = [
-                        // Day 1: 3 Distinct Sessions
                         { id: 'demo-pdf-1', date: `${year}-${month}-05`, startTime: '08:00', endTime: '10:00', title: 'ວາລະ 1: ເຂົ້າເວນ / ສອນຄາບທີ 1-2', type: 'morning', location: 'ອາຄານ A, ຫ້ອງ 101', notes: 'ດຶງຂໍ້ມູນແຍກວາລະ 1', assignedTo: targetName },
                         { id: 'demo-pdf-2', date: `${year}-${month}-05`, startTime: '10:30', endTime: '12:00', title: 'ວາລະ 2: ປະຊຸມທີມງານ / ກວດງານ', type: 'morning', location: 'ຫ້ອງປະຊຸມ 2', notes: 'ດຶງຂໍ້ມູນແຍກວາລະ 2', assignedTo: targetName },
                         { id: 'demo-pdf-3', date: `${year}-${month}-05`, startTime: '13:30', endTime: '16:00', title: 'ວາລະ 3: ຝຶກອົບຮົມ / ຄຸມທີມ', type: 'afternoon', location: 'ອາຄານ B, ຫ້ອງ 302', notes: 'ດຶງຂໍ້ມູນແຍກວາລະ 3', assignedTo: targetName },
-                        
-                        // Other days
                         { id: 'demo-pdf-4', date: `${year}-${month}-10`, startTime: '16:00', endTime: '00:00', title: 'ກະບ່າຍ - ເຂົ້າເວນປະຈຳການ', type: 'afternoon', location: 'ສູນຄວບຄຸມ', notes: 'ດຶງຂໍ້ມູນຈາກ PDF', assignedTo: targetName },
                         { id: 'demo-pdf-5', date: `${year}-${month}-15`, startTime: '00:00', endTime: '08:00', title: 'ກະດຶກ (Night Shift)', type: 'night', location: 'ຕຶກ B', notes: 'ດຶງຂໍ້ມູນຈາກ PDF', assignedTo: targetName },
                     ];
@@ -940,7 +861,23 @@ ${fullPdfText.substring(0, 8000)}
                             <div class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-semibold text-slate-700 mb-1">
-                                        ຊື່ຂອງທ່ານໃນຕາຕະລາງ PDF
+                                        🔑 Gemini API Key (ສຳລັບເປີດໃຊ້ AI ຢູ່ເທິງ GitHub)
+                                    </label>
+                                    <input 
+                                        type="password" 
+                                        value={userApiKey}
+                                        onChange={(e) => setUserApiKey(e.target.value)}
+                                        placeholder="ວາງ Gemini API Key (AIzaSy...)"
+                                        class="w-full text-xs border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:outline-none"
+                                    />
+                                    <p class="text-[11px] text-slate-500 mt-1">
+                                        * ຖ້າທ່ານຍັງບໍ່ມີ ໃຫ້ກົດເອົາຟຣີ 100% ຢູ່ທີ່ <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" class="text-sky-600 underline font-semibold">Google AI Studio</a>
+                                    </p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-semibold text-slate-700 mb-1">
+                                        👤 ຊື່ຂອງທ່ານໃນຕາຕະລາງ PDF
                                     </label>
                                     <input 
                                         type="text" 
@@ -949,13 +886,9 @@ ${fullPdfText.substring(0, 8000)}
                                         placeholder="ໃສ່ຊື່ເພື່ອໃຫ້ AI ຄົ້ນຫາເຈາະຈົງ"
                                         class="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-2 focus:ring-sky-500 focus:outline-none"
                                     />
-                                    <p class="text-[11px] text-slate-500 mt-1">
-                                        AI ຈະຄົ້ນຫາຊື່ນີ້ໃນໄຟລ໌ PDF ແລ້ວດຶງເອົາສະເພາະວັນ ແລະ ເວລາຂອງຊື່ນີ້
-                                    </p>
                                 </div>
 
-                                {/* PDF Drag & Drop area */}
-                                <div class="border-2 border-dashed border-sky-200 bg-sky-50/50 hover:bg-sky-50 rounded-2xl p-6 text-center cursor-pointer transition relative">
+                                <div class="border-2 border-dashed border-sky-200 bg-sky-50/50 hover:bg-sky-50 rounded-2xl p-5 text-center cursor-pointer transition relative">
                                     <input 
                                         type="file" 
                                         accept=".pdf" 
@@ -1008,7 +941,6 @@ ${fullPdfText.substring(0, 8000)}
                                 </div>
                             </div>
                         ) : (
-                            /* Preview Extracted Events */
                             <div class="space-y-4">
                                 <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 flex items-center justify-between text-emerald-800 text-xs font-semibold">
                                     <div class="flex items-center space-x-2">
@@ -1018,7 +950,6 @@ ${fullPdfText.substring(0, 8000)}
                                     <button 
                                         onClick={handleManualDeduplicate}
                                         class="text-[11px] bg-white text-emerald-700 border border-emerald-300 px-2.5 py-1 rounded-lg hover:bg-emerald-100 transition shadow-2xs"
-                                        title="ກົດເພື່ອຮວມແຖວທີ່ວັນທີ ແລະ ເວລາຊໍ້າກັນ"
                                     >
                                         <i class="fa-solid fa-filter mr-1"></i>
                                         ຮວມລາຍການຊໍ້າ
@@ -1044,7 +975,6 @@ ${fullPdfText.substring(0, 8000)}
                                                 <button 
                                                     onClick={() => handleRemoveItem(idx)}
                                                     class="text-slate-400 hover:text-rose-600 p-1 rounded transition"
-                                                    title="ລົບລາຍການນີ້"
                                                 >
                                                     <i class="fa-solid fa-trash text-xs"></i>
                                                 </button>
@@ -1217,7 +1147,6 @@ ${fullPdfText.substring(0, 8000)}
             );
         }
 
-        // Helper date formatter in Lao
         function formatDateLao(dateStr) {
             if (!dateStr) return '';
             const d = new Date(dateStr);
@@ -1228,7 +1157,6 @@ ${fullPdfText.substring(0, 8000)}
             return `ວັນ${dayName}, ວັນທີ ${dayNum} ${monthName} ${year}`;
         }
 
-        // Render React Application
         ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
